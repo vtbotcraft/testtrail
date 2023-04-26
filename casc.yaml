@@ -1,0 +1,60 @@
+jenkins:
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: admin
+          password: admin
+  authorizationStrategy:
+    loggedInUsersCanDoAnything: true
+  numExecutors: 1
+  # Define the scripted pipeline
+  pipelines:
+    script:
+      definition:
+        cps:
+          script: |
+            node('raspberrypi') {
+              stage('Compile') {
+                sh 'make'
+              }
+              stage('UnitTests') {
+                sh 'make test'
+              }
+              stage('Linting') {
+                sh 'clang && cppcheck && pylint && black'
+              }
+            }
+  # Define the declarative pipeline
+    declarative:
+      definition:
+        agent:
+          label: 'raspberrypi'
+        pipelines:
+          - name: 'Declarative Pipeline'
+            agent:
+              label: 'master'
+            stages:
+              - stage: 'Download Code'
+                steps:
+                  - git:
+                      url: 'https://github.com/YOUR-USERNAME/YOUR-REPO.git'
+                      branch: 'main'
+              - stage: 'Compile'
+                steps:
+                  - sh 'make'
+              - stage: 'UnitTests'
+                steps:
+                  - sh 'make test'
+              - stage: 'Linting'
+                steps:
+                  - sh 'clang && cppcheck && pylint && black'
+              - stage: 'Valgrind'
+                steps:
+                  - sh 'valgrind ./program'
+            post:
+              always:
+                - mail:
+                    to: 'you@example.com'
+                    subject: 'Build Status'
+                    body: 'Build Successful'
